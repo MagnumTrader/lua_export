@@ -18,18 +18,26 @@ pub fn get_lua_types() -> impl Iterator<Item = LuaStruct> {
     m.into_iter().map(|(_, s)| s)
 }
 
+/// Main type returned from the iterator.
+/// Collected by TODO: insert instructions.
+///
+/// This is where we will implement to 
+/// lua_docs_str
+/// and parse it in other ways. 
 #[derive(Debug)]
 pub struct LuaStruct {
     pub name: &'static str,
     pub fields: Option<&'static [LuaField]>, 
 }
 
-/// Not public api only used for
+/// Not public api only used for connecting T 
+/// metadata, methods and fields with a struct.
 pub struct LuaItem<T: 'static> {
     pub belongs_to: &'static str,
     pub items: &'static [T],
 }
 
+// i want to work with visibility
 #[derive(Debug)]
 pub struct LuaField {
     pub name: &'static str,
