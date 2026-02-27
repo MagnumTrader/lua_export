@@ -5,6 +5,9 @@ version = 4
 [[package]]
 name = "lua_export_core"
 version = "0.1.0"
+dependencies = [
+ "syn",
+]
 
 [[package]]
 name = "macros"

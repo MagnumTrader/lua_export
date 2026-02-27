@@ -1,11 +1,7 @@
-#![allow(unused, unreachable_code)]
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{
-    Data, DataStruct, Item, ItemStruct, Stmt,
-    parse::{Parse, ParseStream},
-};
+use syn::{ItemStruct, Path, parse::Parser, punctuated::Punctuated, token::Comma};
 
 #[proc_macro_attribute]
 pub fn lua_export(attr: TokenStream, tokens: TokenStream) -> TokenStream {
@@ -18,30 +14,30 @@ pub fn lua_export(attr: TokenStream, tokens: TokenStream) -> TokenStream {
 fn inner(attr: TokenStream2, mut tokens: TokenStream2) -> syn::Result<TokenStream2> {
     let ItemStruct { ident, .. } = syn::parse2(tokens.clone())?;
 
-    let impl_trait = quote! {
-        impl ToLuaStruct for #ident {
-            fn to_lua_struct() -> LuaStruct {
-                LuaStruct {
-                    name: stringify!(#ident)
-                }
+    let list = Punctuated::<Path, Comma>::parse_terminated.parse2(attr)?;
+
+    //TODO: Loop over real fields,
+    //parse type
+    let fields = list.iter().map(|path| {
+        let name = path.get_ident().expect("Expecting ident in field");
+
+        quote! {
+            LuaField {
+                name: stringify!(#name),
+            }
+        }
+    });
+
+    let export_fields = quote! {
+    
+        ::lua_export_core::inventory::submit!{
+            ::lua_export_core::LuaItem {
+                belongs_to: stringify!(#ident),
+                items: &[#(#fields),*]
             }
         }
     };
-    tokens.extend(impl_trait);
+
+    tokens.extend(export_fields);
     Ok(tokens)
-}
-
-struct StmtList {
-    stmts: Vec<Stmt>,
-}
-
-impl Parse for StmtList {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut stmts = Vec::new();
-        while !input.is_empty() {
-            // Expect stmts we can parse first a fieldname, then this then that
-            stmts.push(input.parse()?);
-        }
-        Ok(StmtList { stmts })
-    }
 }

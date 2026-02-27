@@ -3,6 +3,15 @@
 version = 4
 
 [[package]]
+name = "inventory"
+version = "0.3.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "009ae045c87e7082cb72dab0ccd01ae075dd00141ddc108f43a0ea150a9e7227"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "lua_export"
 version = "0.1.0"
 dependencies = [
@@ -13,6 +22,10 @@ dependencies = [
 [[package]]
 name = "lua_export_core"
 version = "0.1.0"
+dependencies = [
+ "inventory",
+ "syn",
+]
 
 [[package]]
 name = "macros"
@@ -41,6 +54,12 @@ checksum = "21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "rustversion"
+version = "1.0.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "syn"
