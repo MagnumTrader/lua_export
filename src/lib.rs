@@ -9,27 +9,24 @@ pub use macros::*;
 //
 // Add #[lua(rename = "Myname")] attribute
 
-#[lua_export]
-pub struct MyIndicator {
-    pub inner: usize,
-}
-
 #[allow(unused, unreachable_code)]
 #[cfg(test)]
 mod tests {
-    #[lua_export]
-    pub struct MyIndicator {
+
+    use super::*;
+
+    #[derive(LuaExport)]
+    pub struct MyTestIndicator {
         pub number: usize,
         pub inner: std::string::String,
     }
 
-    use super::*;
     #[test]
     fn first_test() {
         let mut l_types = get_lua_types();
 
         let ty = l_types.next().unwrap();
-        assert_eq!(ty.name, "MyIndicator");
+        assert_eq!(ty.name, "MyTestIndicator");
         assert_eq!(ty.fields.unwrap()[0].name, "number");
         assert_eq!(ty.fields.unwrap()[0].ty, "usize");
         assert_eq!(ty.fields.unwrap()[1].name, "inner");

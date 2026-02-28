@@ -2,11 +2,14 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse::Parser, punctuated::Punctuated, token::Comma, Fields, ItemStruct, Path, Type, TypePath};
+use syn::{
+    Data, DataStruct, DeriveInput, Fields, Item, ItemStruct, Path, Type, TypePath, parse::Parser,
+    punctuated::Punctuated, spanned::Spanned, token::Comma,
+};
 
-#[proc_macro_attribute]
-pub fn lua_export(attr: TokenStream, tokens: TokenStream) -> TokenStream {
-    match inner(attr.into(), tokens.into()) {
+#[proc_macro_derive(LuaExport, attributes(skip))]
+pub fn lua_export(tokens: TokenStream) -> TokenStream {
+    match inner(tokens.into()) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -14,34 +17,30 @@ pub fn lua_export(attr: TokenStream, tokens: TokenStream) -> TokenStream {
 
 const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
 
-fn inner(attr: TokenStream2, mut tokens: TokenStream2) -> syn::Result<TokenStream2> {
-    let ItemStruct {
-        ident,
-        fields: Fields::Named(fields),
-        ..
-    } = syn::parse2(tokens.clone())?
-    else {
-        return Err(syn::Error::new_spanned(tokens, STRUCT_ERROR));
+fn inner(tokens: TokenStream2) -> syn::Result<TokenStream2> {
+
+    let input = syn::parse2::<DeriveInput>(tokens)?;
+    let ident = &input.ident;
+    let span = input.span();
+
+    let Data::Struct(DataStruct { fields, .. }) = input.data else {
+        return Err(syn::Error::new(span, STRUCT_ERROR));
     };
 
-
-    // TODO: add a filter here that checks if the attributes have skip in them
-    // shortcircuit the iterator
-    let fields = fields.named.iter().map(|field|{
-        let ident = field.ident.as_ref().expect("in named fields");
-        let Type::Path(TypePath{ path, .. }) = &field.ty else {
+    let fields = fields.iter().map(|field| {
+        let ident = field.ident.as_ref().expect("Only support named fields");
+        let Type::Path(TypePath { path, .. }) = &field.ty else {
             panic!("only works with path")
         };
         let last_ty = path.segments.last().unwrap();
 
-        quote!{
+        quote! {
             LuaField {
                 name: stringify!(#ident),
                 ty: stringify!(#last_ty)
             }
         }
     });
-
 
     let export_fields = quote! {
         ::lua_export_core::inventory::submit!{
@@ -52,6 +51,5 @@ fn inner(attr: TokenStream2, mut tokens: TokenStream2) -> syn::Result<TokenStrea
         }
     };
 
-    tokens.extend(export_fields);
-    Ok(tokens)
+    Ok(export_fields)
 }
