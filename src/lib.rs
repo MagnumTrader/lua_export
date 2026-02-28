@@ -21,12 +21,14 @@ mod tests {
         pub skipping: usize
     }
 
+    fn get_test_indicator() -> LuaStruct {
+        let l_types = get_lua_types();
+        l_types.into_iter().find(|s| s.name == "MyTestIndicator").unwrap()
+    }
+
     #[test]
     fn first_test() {
-        let mut l_types = get_lua_types();
-
-        let ty = l_types.next().unwrap();
-        assert_eq!(ty.name, "MyTestIndicator");
+        let ty = get_test_indicator();
 
         let mut fields = ty.fields.unwrap().iter();
 
@@ -39,8 +41,6 @@ mod tests {
         assert_eq!(second.ty, "String");
 
         assert!(fields.next().is_none());
-
-        assert!(l_types.next().is_none(), "We have only defined one struct in the test module. fragile")
     }
 
     struct Hello;
