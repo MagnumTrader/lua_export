@@ -5,29 +5,63 @@ pub use macros::*;
 // Extract the struct logic, so we can match on where the attribute is done
 // Add #[lua_export] for methods and impl blocks math on it
 // Add #[lua(rename = "Myname")] attribute
+#[lua_export]
+struct MyIndicator {
+    #[lua]
+    pub number: usize,
+    #[lua]
+    pub inner: std::string::String,
+    pub skipping: usize,
+}
 
 #[allow(unused, unreachable_code)]
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
+
     use super::*;
 
     #[lua_export]
-    pub struct MyTestIndicator {
+    struct MyTestIndicator {
         #[lua]
         pub number: usize,
         #[lua]
         pub inner: std::string::String,
-        pub skipping: usize
+        pub skipping: usize,
+    }
+
+    #[lua_export]
+    impl MyTestIndicator {
+        #[lua]
+        pub fn fun(m: usize) -> &'static str {
+            "hello"
+        }
+
+        pub fn other(m: usize) -> &'static str {
+            "hello"
+        }
+
+    }
+
+    #[lua_export]
+    impl From<String> for MyTestIndicator {
+        #[lua]
+        fn from(value: String) -> Self {
+            todo!()
+        }
     }
 
     fn get_test_indicator() -> LuaStruct {
         let l_types = get_lua_types();
-        l_types.into_iter().find(|s| s.name == "MyTestIndicator").unwrap()
+        l_types
+            .into_iter()
+            .find(|s| s.name == "MyTestIndicator")
+            .unwrap()
     }
 
     #[test]
-    fn first_test() {
+    fn test_fields() {
         let ty = get_test_indicator();
 
         let mut fields = ty.fields.unwrap().iter();
@@ -41,6 +75,16 @@ mod tests {
         assert_eq!(second.ty, "String");
 
         assert!(fields.next().is_none());
+    }
+
+    #[test]
+    fn test_methods() {
+        let ty = get_test_indicator();
+        // Test Signatures and returns aswell
+        assert_eq!(
+            ty.methods.iter().map(|m| m.name).collect::<HashSet<&'static str>>(),
+            HashSet::from(["fun", "from"])
+        );
     }
 
     struct Hello;
