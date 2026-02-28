@@ -18,7 +18,6 @@ pub fn lua_export(tokens: TokenStream) -> TokenStream {
 const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
 
 fn inner(tokens: TokenStream2) -> syn::Result<TokenStream2> {
-
     let input = syn::parse2::<DeriveInput>(tokens)?;
     let ident = &input.ident;
     let span = input.span();
@@ -27,20 +26,25 @@ fn inner(tokens: TokenStream2) -> syn::Result<TokenStream2> {
         return Err(syn::Error::new(span, STRUCT_ERROR));
     };
 
-    let fields = fields.iter().map(|field| {
-        let ident = field.ident.as_ref().expect("Only support named fields");
-        let Type::Path(TypePath { path, .. }) = &field.ty else {
-            panic!("only works with path")
-        };
-        let last_ty = path.segments.last().unwrap();
+    let fields = fields
+        .iter()
+        .filter(|f| !f.attrs.iter().any(|a| a.path().is_ident("skip")))
+        .map(|field| {
+            // NOTE: we can return here, and collect into Result<Vec<_>> and do ? on that one
+            // Maybe use combined for multile things
+            let ident = field.ident.as_ref().expect("Only support named fields");
+            let Type::Path(TypePath { path, .. }) = &field.ty else {
+                panic!("only works with path")
+            };
+            let last_ty = path.segments.last().unwrap();
 
-        quote! {
-            LuaField {
-                name: stringify!(#ident),
-                ty: stringify!(#last_ty)
+            quote! {
+                LuaField {
+                    name: stringify!(#ident),
+                    ty: stringify!(#last_ty)
+                }
             }
-        }
-    });
+        });
 
     let export_fields = quote! {
         ::lua_export_core::inventory::submit!{
