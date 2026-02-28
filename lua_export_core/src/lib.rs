@@ -1,12 +1,12 @@
 #![allow(unused, unreachable_code)]
 
-use std::collections::HashMap;
 pub use inventory;
+use std::collections::HashMap;
 
 pub fn get_lua_types() -> impl Iterator<Item = LuaStruct> {
     // Collect meta data
     let mut m = HashMap::new();
-    
+
     for item in inventory::iter::<LuaItem<LuaField>> {
         let s = m.entry(item.belongs_to).or_insert(LuaStruct {
             name: item.belongs_to,
@@ -21,16 +21,16 @@ pub fn get_lua_types() -> impl Iterator<Item = LuaStruct> {
 /// Main type returned from the iterator.
 /// Collected by TODO: insert instructions.
 ///
-/// This is where we will implement to 
+/// This is where we will implement to
 /// lua_docs_str
-/// and parse it in other ways. 
+/// and parse it in other ways.
 #[derive(Debug)]
 pub struct LuaStruct {
     pub name: &'static str,
-    pub fields: Option<&'static [LuaField]>, 
+    pub fields: Option<&'static [LuaField]>,
 }
 
-/// Not public api only used for connecting T 
+/// Not public api only used for connecting T
 /// metadata, methods and fields with a struct.
 pub struct LuaItem<T: 'static> {
     pub belongs_to: &'static str,
@@ -41,6 +41,28 @@ pub struct LuaItem<T: 'static> {
 #[derive(Debug)]
 pub struct LuaField {
     pub name: &'static str,
+    pub ty: &'static str,
+}
+
+pub enum LuaType {
+    // Lua 5.x?
+    Integer,
+    Number,
+    String,
+    Table,
+    Nil,
+}
+
+impl From<syn::TypePath> for LuaType {
+    fn from(value: syn::TypePath) -> Self {
+        let s = value.path.segments.last().expect("Path should have last");
+        let s = s.ident.to_string();
+        match s.as_str() {
+            "String" => LuaType::String,
+            "usize" | "isize" | "i32" | "i8"  => LuaType::Integer,
+            _ => unimplemented!("Type not implemented: {}", s),
+        }
+    }
 }
 
 inventory::collect!(LuaItem<LuaField>);

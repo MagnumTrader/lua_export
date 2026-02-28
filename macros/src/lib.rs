@@ -2,7 +2,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{Fields, ItemStruct, Path, parse::Parser, punctuated::Punctuated, token::Comma};
+use syn::{parse::Parser, punctuated::Punctuated, token::Comma, Fields, ItemStruct, Path, Type, TypePath};
 
 #[proc_macro_attribute]
 pub fn lua_export(attr: TokenStream, tokens: TokenStream) -> TokenStream {
@@ -27,10 +27,15 @@ fn inner(attr: TokenStream2, mut tokens: TokenStream2) -> syn::Result<TokenStrea
 
     let fields = fields.named.iter().map(|field|{
         let ident = field.ident.as_ref().expect("in named fields");
+        let Type::Path(TypePath{ path, .. }) = &field.ty else {
+            panic!("only works with path")
+        };
+        let last_ty = path.segments.last().unwrap();
 
         quote!{
             LuaField {
-                name: stringify!(#ident)
+                name: stringify!(#ident),
+                ty: stringify!(#last_ty)
             }
         }
     });
