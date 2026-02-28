@@ -25,6 +25,8 @@ fn inner(attr: TokenStream2, mut tokens: TokenStream2) -> syn::Result<TokenStrea
     };
 
 
+    // TODO: add a filter here that checks if the attributes have skip in them
+    // shortcircuit the iterator
     let fields = fields.named.iter().map(|field|{
         let ident = field.ident.as_ref().expect("in named fields");
         let Type::Path(TypePath{ path, .. }) = &field.ty else {

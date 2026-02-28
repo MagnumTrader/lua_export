@@ -1,16 +1,13 @@
 // Crate for the things that we will be using for translating rust types to lua
 pub use lua_export_core::*;
 pub use macros::*;
-// TODO: 2 Add type meta data to LuaField, map -> LuaType
+// TODO:s
 // Add #[lua(skip)] attribute
 // Extract the struct logic, so we can match on where the attribute is done
 //
 // Add #[lua_export] for methods and impl blocks math on it
 //
 // Add #[lua(rename = "Myname")] attribute
-//
-//
-//
 
 #[lua_export]
 pub struct MyIndicator {
