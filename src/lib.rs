@@ -16,7 +16,7 @@ mod tests {
     pub struct MyTestIndicator {
         pub number: usize,
         pub inner: std::string::String,
-        #[skip]
+        #[lua(skip, hello, this)]
         pub skipping: usize
     }
 
