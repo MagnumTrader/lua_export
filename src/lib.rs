@@ -21,13 +21,13 @@ mod tests {
     use super::*;
     #[test]
     fn first_test() {
-        let mut it = get_lua_types();
+        let mut l_types = get_lua_types();
 
-        
-        let t = it.next().unwrap();
-        assert_eq!(t.name, "MyIndicator");
-        assert_eq!(t.fields.unwrap()[0].name, "number");
-        assert_eq!(t.fields.unwrap()[1].name, "inner");
+        let ty = l_types.next().unwrap();
+        assert_eq!(ty.name, "MyIndicator");
+        assert_eq!(ty.fields.unwrap()[0].name, "number");
+        assert_eq!(ty.fields.unwrap()[1].name, "inner");
+        assert!(l_types.next().is_none(), "We have only defined one struct in the teest module. fragile")
     }
 
     struct Hello;
