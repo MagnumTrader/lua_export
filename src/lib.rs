@@ -12,8 +12,9 @@ pub struct MyIndicator {
 #[allow(unused, unreachable_code)]
 #[cfg(test)]
 mod tests {
-    #[lua_export(number, inner)]
+    #[lua_export]
     pub struct MyIndicator {
+        pub number: usize,
         pub inner: usize,
     }
 
@@ -22,17 +23,17 @@ mod tests {
     fn first_test() {
         let mut it = get_lua_types();
 
+        
         let t = it.next().unwrap();
+        assert_eq!(t.name, "MyIndicator");
         assert_eq!(t.fields.unwrap()[0].name, "number");
         assert_eq!(t.fields.unwrap()[1].name, "inner");
     }
 
     struct Hello;
-
     fn t<T>() -> &'static str {
         std::any::type_name::<T>().split("::").last().unwrap()
     }
-
     #[test]
     fn stringify() {
         let x = t::<Hello>();

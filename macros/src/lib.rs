@@ -1,7 +1,8 @@
+#![allow(unused, unreachable_code)]
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{ItemStruct, Path, parse::Parser, punctuated::Punctuated, token::Comma};
+use syn::{Fields, ItemStruct, Path, parse::Parser, punctuated::Punctuated, token::Comma};
 
 #[proc_macro_attribute]
 pub fn lua_export(attr: TokenStream, tokens: TokenStream) -> TokenStream {
@@ -11,25 +12,31 @@ pub fn lua_export(attr: TokenStream, tokens: TokenStream) -> TokenStream {
     }
 }
 
+const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
+
 fn inner(attr: TokenStream2, mut tokens: TokenStream2) -> syn::Result<TokenStream2> {
-    let ItemStruct { ident, .. } = syn::parse2(tokens.clone())?;
+    let ItemStruct {
+        ident,
+        fields: Fields::Named(fields),
+        ..
+    } = syn::parse2(tokens.clone())?
+    else {
+        return Err(syn::Error::new_spanned(tokens, STRUCT_ERROR));
+    };
 
-    let list = Punctuated::<Path, Comma>::parse_terminated.parse2(attr)?;
 
-    //TODO: Loop over real fields,
-    //parse type
-    let fields = list.iter().map(|path| {
-        let name = path.get_ident().expect("Expecting ident in field");
+    let fields = fields.named.iter().map(|field|{
+        let ident = field.ident.as_ref().expect("in named fields");
 
-        quote! {
+        quote!{
             LuaField {
-                name: stringify!(#name),
+                name: stringify!(#ident)
             }
         }
     });
 
+
     let export_fields = quote! {
-    
         ::lua_export_core::inventory::submit!{
             ::lua_export_core::LuaItem {
                 belongs_to: stringify!(#ident),
