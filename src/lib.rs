@@ -12,11 +12,12 @@ mod tests {
 
     use super::*;
 
-    #[derive(LuaExport)]
+    #[lua_export]
     pub struct MyTestIndicator {
+        #[lua]
         pub number: usize,
+        #[lua]
         pub inner: std::string::String,
-        #[lua(skip, hello, this)]
         pub skipping: usize
     }
 

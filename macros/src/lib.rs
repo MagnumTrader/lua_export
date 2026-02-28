@@ -7,9 +7,9 @@ use syn::{
     TypePath, parse::Parser, punctuated::Punctuated, spanned::Spanned, token::Comma,
 };
 
-#[proc_macro_derive(LuaExport, attributes(skip, lua))]
-pub fn lua_export(tokens: TokenStream) -> TokenStream {
-    match inner(tokens.into()) {
+#[proc_macro_attribute]
+pub fn lua_export(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
+    match inner(attrs.into(), tokens.into()) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -17,29 +17,16 @@ pub fn lua_export(tokens: TokenStream) -> TokenStream {
 
 const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
 
-fn is_skip(field: &syn::Field) -> bool {
-    let lua_attr = field.attrs.iter().find(|a| a.path().is_ident("lua"));
-    if lua_attr.is_none() {
-        return false;
-    }
-
-    let attr = lua_attr.unwrap();
-    let mut skip = false;
-
-    attr.parse_nested_meta(|m| {
-        if m.path.is_ident("skip") {
-            skip = true;
-            return Ok(());
-        }
-        Ok(())
-    })
-    .unwrap();
-
-    skip
+fn include_lua(field: &syn::Field) -> bool {
+    field.attrs.iter().any(|a| a.path().is_ident("lua"))
 }
 
 // handle the attributes instead parse the inner argument attr inner
-fn inner(tokens: TokenStream2) -> syn::Result<TokenStream2> {
+fn inner(attrs: TokenStream2, tokens: TokenStream2) -> syn::Result<TokenStream2> {
+    // refactor this so that we can parse impl blocks and stuff aswell, 
+    // Then we handle the impl blocks for methods should it only be on the methods. can it look up
+    // self?
+    let i = syn::parse2::<Item>(tokens.clone())?;
     let input = syn::parse2::<DeriveInput>(tokens)?;
     let ident = &input.ident;
     let span = input.span();
@@ -48,7 +35,7 @@ fn inner(tokens: TokenStream2) -> syn::Result<TokenStream2> {
         return Err(syn::Error::new(span, STRUCT_ERROR));
     };
 
-    let fields = fields.iter().filter(|f| !is_skip(f)).map(|field| {
+    let fields = fields.iter().filter(|f| include_lua(f)).map(|field| {
         // NOTE: we can return here, and collect into Result<Vec<_>> and do ? on that one
         // Maybe use combined for multile things
         let ident = field.ident.as_ref().expect("Only support named fields");
