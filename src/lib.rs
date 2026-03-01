@@ -38,6 +38,7 @@ mod tests {
             "hello"
         }
 
+        // NOTE: this should not be inlcuded
         pub fn other(m: usize) -> &'static str {
             "hello"
         }

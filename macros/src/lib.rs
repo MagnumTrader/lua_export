@@ -101,42 +101,33 @@ fn handle_impl(mut item_impl: ItemImpl) -> syn::Result<TokenStream2> {
 
     let ident = *path.get_ident().as_ref().unwrap();
 
-    //TODO: Refactor this, maybe not use iterators?
-    let quote_methods: Vec<_> = items
-        .iter_mut()
-        .filter(|f| {
-            let ImplItem::Fn(ImplItemFn {
-                attrs,
-                vis,
-                defaultness,
-                sig,
-                block,
-            }) = f
-            else {
-                panic!("Only functions in impl blocks are implemented")
-            };
-            attrs.iter().any(|a| a.path().is_ident("lua"))
-        })
-        .map(|f| {
-            let ImplItem::Fn(ImplItemFn {
-                attrs,
-                vis,
-                defaultness,
-                sig,
-                block,
-            }) = f
-            else {
-                panic!("Only functions in impl blocks are implemented")
-            };
-            attrs.retain(|a| !a.path().is_ident("lua"));
-            let ident = &sig.ident;
-            quote! {
-                LuaMethod {
-                    name: stringify!(#ident)
-                }
+    let mut quote_methods = Vec::new();
+    for item in items {
+        let ImplItem::Fn(ImplItemFn {
+            attrs,
+            vis,
+            defaultness,
+            sig,
+            block,
+        }) = item
+        else {
+            return Err(syn::Error::new(item.span(), "Only Impl functions are supported for lua export"))
+        };
+
+        // Skip functions that dont have the lua anotation
+        if !attrs.iter().any(|a| a.path().is_ident("lua")) {
+            continue;
+        }
+
+        attrs.retain(|a| !a.path().is_ident("lua"));
+
+        let ident = &sig.ident;
+        quote_methods.push(quote! {
+            LuaMethod {
+                name: stringify!(#ident)
             }
-        })
-        .collect();
+        });
+    }
 
     let reconstructed = quote! {
         #item_impl
