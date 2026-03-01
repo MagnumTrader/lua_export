@@ -1,5 +1,3 @@
-#![allow(unused, unreachable_code)]
-
 pub use inventory;
 use std::collections::HashMap;
 

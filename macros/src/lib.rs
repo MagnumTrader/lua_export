@@ -1,15 +1,12 @@
-#![allow(unused, unreachable_code)]
-use proc_macro::{Ident, TokenStream};
+mod parse;
+mod codegen;
+
+use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
 use syn::{
-    Attribute, Data, DataStruct, DeriveInput, Fields, ImplItem, ImplItemFn, Item, ItemImpl,
-    ItemStruct, LitStr, Meta, MetaList, Path, Token, Type, TypePath,
-    parse::{Parse, Parser},
-    punctuated::Punctuated,
-    spanned::Spanned,
-    token::Comma,
+    Item, spanned::Spanned,
 };
+
 
 #[proc_macro_attribute]
 pub fn lua_export(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
@@ -19,175 +16,16 @@ pub fn lua_export(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
     }
 }
 
-const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
-
-#[derive(Debug, Default)]
-struct LuaAttrs {
-    rename: Option<String>,
-}
-
-mod kw {
-    syn::custom_keyword!(rename);
-}
-
-// FIXME: Clean up this shiet
-impl Parse for LuaAttrs {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut rename = None;
-
-        while !input.is_empty() {
-            let lookahead = input.lookahead1();
-            if lookahead.peek(kw::rename) {
-                input.parse::<kw::rename>().expect("just peeked");
-                input.parse::<Token![=]>()?;
-                let lit: LitStr = input.parse()?;
-                rename = Some(lit.value())
-            }
-        }
-        Ok(LuaAttrs { rename })
-    }
-}
-
-// FIX: return a Result instead and return error for unknown attributes.
-fn parse_lua_attr(attrs: &[Attribute]) -> Option<LuaAttrs> {
-    for attr in attrs {
-        if attr.path().is_ident("lua") {
-            match attr.parse_args() {
-                Ok(p) => return Some(p),
-                Err(_) => return Some(LuaAttrs::default()),
-            }
-        }
-    }
-    None
-}
-
-fn remove_lua_attr(attrs: &mut Vec<Attribute>) {
-    attrs.retain_mut(|attr| !attr.path().is_ident("lua"));
-}
-
-// handle the attributes instead parse the inner argument attr inner
-fn inner(attrs: TokenStream2, mut tokens: TokenStream2) -> syn::Result<TokenStream2> {
+fn inner(_attrs: TokenStream2, tokens: TokenStream2) -> syn::Result<TokenStream2> {
     let span = tokens.span();
     match syn::parse2::<Item>(tokens)? {
-        Item::Struct(item_struct) => handle_struct(item_struct),
-        Item::Impl(item_impl) => handle_impl(item_impl),
+        Item::Struct(item_struct) => codegen::handle_struct(item_struct),
+        Item::Impl(item_impl) => codegen::handle_impl(item_impl),
         item => Err(syn::Error::new(
             span,
             format!("lua_export not implemented for {}", item_to_str(item)),
         )),
     }
-}
-
-fn handle_struct(mut item_struct: ItemStruct) -> syn::Result<TokenStream2> {
-    let ItemStruct {
-        ref ident,
-        ref mut fields,
-        ..
-    } = item_struct;
-
-    let mut quote_fields = Vec::new();
-
-    for field in fields {
-        let Some(field_attrs) = parse_lua_attr(&field.attrs) else {
-            continue;
-        };
-        remove_lua_attr(&mut field.attrs);
-
-        let Type::Path(TypePath { path, .. }) = &field.ty else {
-            panic!("Lua export only work with types of type path")
-        };
-
-        let last_ty = path.segments.last().unwrap();
-        let field_ident = match field_attrs.rename {
-            Some(name) => &syn::Ident::new(&name, field.span()),
-            None => field.ident.as_ref().expect("expect to have named fields"),
-        };
-        quote_fields.push(quote! {
-            LuaField {
-                name: stringify!(#field_ident),
-                ty: stringify!(#last_ty)
-            }
-        })
-    }
-
-    let reconstructed = quote! {
-
-        #item_struct
-
-        ::lua_export_core::inventory::submit!{
-            ::lua_export_core::LuaItem {
-                belongs_to: stringify!(#ident),
-                items: &[#(#quote_fields),*]
-            }
-        }
-    };
-
-    Ok(reconstructed)
-}
-
-fn handle_impl(mut item_impl: ItemImpl) -> syn::Result<TokenStream2> {
-    let ItemImpl {
-        ref attrs,
-        ref defaultness,
-        ref unsafety,
-        ref impl_token,
-        ref generics,
-        ref trait_,
-        ref self_ty,
-        ref brace_token,
-        ref mut items,
-    } = item_impl;
-
-    let Type::Path(TypePath {
-        ref qself,
-        ref path,
-    }) = **self_ty
-    else {
-        panic!("Expected path as self_ty, mabe  handle self")
-    };
-
-    let ident = *path.get_ident().as_ref().unwrap();
-
-    let mut quote_methods = Vec::new();
-    for item in items {
-        let fn_impl = match item {
-            ImplItem::Fn(impl_item_fn) => impl_item_fn,
-            // FIX: we just ignores all other types, so we dont
-            // catch when user annotates other items than Fn
-            _ => continue,
-        };
-
-        let ImplItemFn { attrs, sig, .. } = fn_impl;
-
-        let Some(field_attr) = parse_lua_attr(&attrs) else {
-            continue;
-        };
-        remove_lua_attr(attrs);
-
-        let ident = match field_attr.rename {
-            Some(s) => &syn::Ident::new(&s, sig.ident.span()),
-            None => &sig.ident,
-        };
-
-        quote_methods.push(quote! {
-            LuaMethod {
-                name: stringify!(#ident)
-            }
-        });
-    }
-
-    let reconstructed = quote! {
-        #item_impl
-
-        ::lua_export_core::inventory::submit!{
-            ::lua_export_core::LuaItem {
-                belongs_to: stringify!(#ident),
-                items: &[#(#quote_methods),*]
-            }
-        }
-    };
-
-    Ok(reconstructed)
 }
 
 // TODO: These can have more userfriendly errors, dont expose syn types

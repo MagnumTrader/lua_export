@@ -2,7 +2,8 @@
 pub use lua_export_core::*;
 pub use macros::*;
 // TODO:s
-// Add #[lua(rename = "Myname")] attribute
+// Add LuaDocs generation for LuaStruct
+#[allow(dead_code)]
 #[lua_export]
 struct MyIndicator {
     #[lua]
