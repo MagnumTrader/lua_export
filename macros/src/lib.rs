@@ -18,8 +18,12 @@ pub fn lua_export(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
 
 const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
 
-fn include_lua(field: &syn::Field) -> bool {
-    field.attrs.iter().any(|a| a.path().is_ident("lua"))
+fn remove_lua_attr(attrs: &mut Vec<Attribute>) {
+    attrs.retain_mut(|attr| !attr.path().is_ident("lua"));
+}
+
+fn has_lua_attr(attrs: &Vec<Attribute>) -> bool {
+    attrs.iter().any(|a| a.path().is_ident("lua"))
 }
 
 // handle the attributes instead parse the inner argument attr inner
@@ -42,26 +46,28 @@ fn handle_struct(mut item_struct: ItemStruct) -> syn::Result<TokenStream2> {
         ..
     } = item_struct;
 
-    let quote_fields: Vec<_> = fields
-        .iter_mut()
-        .filter(|f| include_lua(f))
-        .map(|field| {
-            // Remove the #[lua] attribute since its unknown when main macro is an attribute macro
-            field.attrs.retain_mut(|f| !f.path().is_ident("lua"));
-            let ident = field.ident.as_ref().expect("Only support named fields");
-            let Type::Path(TypePath { path, .. }) = &field.ty else {
-                panic!("only works with path")
-            };
-            let last_ty = path.segments.last().unwrap();
+    let mut quote_fields = Vec::new();
 
-            quote! {
-                LuaField {
-                    name: stringify!(#ident),
-                    ty: stringify!(#last_ty)
-                }
+    for field in fields {
+
+        if !has_lua_attr(&field.attrs) {
+            continue;
+        }
+        remove_lua_attr(&mut field.attrs);
+
+        let Type::Path(TypePath { path, .. }) = &field.ty else {
+            panic!("Lua export only work with types of type path")
+        };
+
+        let last_ty = path.segments.last().unwrap();
+        let field_ident = &field.ident;
+        quote_fields.push(quote! {
+            LuaField {
+                name: stringify!(#field_ident),
+                ty: stringify!(#last_ty)
             }
         })
-        .collect();
+    }
 
     let reconstructed = quote! {
 
@@ -103,23 +109,24 @@ fn handle_impl(mut item_impl: ItemImpl) -> syn::Result<TokenStream2> {
 
     let mut quote_methods = Vec::new();
     for item in items {
-        let ImplItem::Fn(ImplItemFn {
-            attrs,
-            vis,
-            defaultness,
-            sig,
-            block,
-        }) = item
-        else {
-            return Err(syn::Error::new(item.span(), "Only Impl functions are supported for lua export"))
+
+        let fn_impl = match item {
+            ImplItem::Fn(impl_item_fn) => impl_item_fn,
+            // FIX: we just ignores all other types, so we dont 
+            // catch when user annotates other items than Fn
+            _ => continue, 
         };
 
-        // Skip functions that dont have the lua anotation
-        if !attrs.iter().any(|a| a.path().is_ident("lua")) {
+        let ImplItemFn {
+            attrs,
+            sig,
+            ..
+        } = fn_impl;
+
+        if !has_lua_attr(attrs) {
             continue;
         }
-
-        attrs.retain(|a| !a.path().is_ident("lua"));
+        remove_lua_attr(attrs);
 
         let ident = &sig.ident;
         quote_methods.push(quote! {

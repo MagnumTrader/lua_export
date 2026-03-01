@@ -2,8 +2,6 @@
 pub use lua_export_core::*;
 pub use macros::*;
 // TODO:s
-// Extract the struct logic, so we can match on where the attribute is done
-// Add #[lua_export] for methods and impl blocks math on it
 // Add #[lua(rename = "Myname")] attribute
 #[lua_export]
 struct MyIndicator {
@@ -33,16 +31,19 @@ mod tests {
 
     #[lua_export]
     impl MyTestIndicator {
+
+        const IGNORED: &'static str = "I am ignored by Lua export";
+
+        // Included
         #[lua]
         pub fn fun(m: usize) -> &'static str {
             "hello"
         }
 
-        // NOTE: this should not be inlcuded
+        // Not included
         pub fn other(m: usize) -> &'static str {
             "hello"
         }
-
     }
 
     #[lua_export]
