@@ -2,7 +2,16 @@
 pub use lua_export_core::*;
 pub use macros::*;
 // TODO:s
+// 
 // Add LuaDocs generation for LuaStruct
+// Refactor to original design for methods.
+//  But assert by useing
+// Add mlua feature -> Impl UserData for fields and methods
+///```
+///const _: fn() = || {
+///   let _: fn(&MyIndicator, usize) -> usize = MyIndicator::my_method;
+///};
+///```
 #[allow(dead_code)]
 #[lua_export]
 struct MyIndicator {
@@ -20,6 +29,13 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
+
+    const _: fn() = || {
+        let _: fn(usize) -> &'static str = MyTestIndicator::fun;
+    };
+    const _: fn() = || {
+        let _: fn(&MyTestIndicator, usize) -> &'static str = MyTestIndicator::const_verification;
+    };
 
     #[lua_export]
     struct MyTestIndicator {
@@ -52,6 +68,10 @@ mod tests {
         // Not included
         #[lua(rename = "renamed_method")]
         pub fn wierd_name(m: usize) -> &'static str {
+            "hello"
+        }
+
+        pub fn const_verification(&self, m: usize) -> &'static str {
             "hello"
         }
     }
