@@ -21,8 +21,8 @@ pub fn lua_export(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
 
 const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
 
-#[derive(Debug)]
-struct FieldAttrs {
+#[derive(Debug, Default)]
+struct LuaAttrs {
     rename: Option<String>,
 }
 
@@ -31,31 +31,31 @@ mod kw {
 }
 
 // FIXME: Clean up this shiet
-impl Parse for FieldAttrs {
+impl Parse for LuaAttrs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut rename = None;
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
             if lookahead.peek(kw::rename) {
-                input.parse::<kw::rename>()?;
+                input.parse::<kw::rename>().expect("just peeked");
                 input.parse::<Token![=]>()?;
                 let lit: LitStr = input.parse()?;
                 rename = Some(lit.value())
             }
         }
-        Ok(FieldAttrs { rename })
+        Ok(LuaAttrs { rename })
     }
 }
 
-fn parse_attrs(attrs: &[Attribute]) -> Option<FieldAttrs> {
+// FIX: return a Result instead and return error for unknown attributes.
+fn parse_lua_attr(attrs: &[Attribute]) -> Option<LuaAttrs> {
     for attr in attrs {
         if attr.path().is_ident("lua") {
-            let default = FieldAttrs { rename: None };
-            let parsed: FieldAttrs = match attr.parse_args() {
+            match attr.parse_args() {
                 Ok(p) => return Some(p),
-                Err(_) => return Some(default),
-            };
+                Err(_) => return Some(LuaAttrs::default()),
+            }
         }
     }
     None
@@ -63,10 +63,6 @@ fn parse_attrs(attrs: &[Attribute]) -> Option<FieldAttrs> {
 
 fn remove_lua_attr(attrs: &mut Vec<Attribute>) {
     attrs.retain_mut(|attr| !attr.path().is_ident("lua"));
-}
-
-fn has_lua_attr(attrs: &Vec<Attribute>) -> bool {
-    attrs.iter().any(|a| a.path().is_ident("lua"))
 }
 
 // handle the attributes instead parse the inner argument attr inner
@@ -92,10 +88,9 @@ fn handle_struct(mut item_struct: ItemStruct) -> syn::Result<TokenStream2> {
     let mut quote_fields = Vec::new();
 
     for field in fields {
-        let Some(field_attrs) = parse_attrs(&mut field.attrs) else {
+        let Some(field_attrs) = parse_lua_attr(&field.attrs) else {
             continue;
         };
-        eprintln!("{:?}", field_attrs);
         remove_lua_attr(&mut field.attrs);
 
         let Type::Path(TypePath { path, .. }) = &field.ty else {
@@ -164,12 +159,16 @@ fn handle_impl(mut item_impl: ItemImpl) -> syn::Result<TokenStream2> {
 
         let ImplItemFn { attrs, sig, .. } = fn_impl;
 
-        if !has_lua_attr(attrs) {
+        let Some(field_attr) = parse_lua_attr(&attrs) else {
             continue;
-        }
+        };
         remove_lua_attr(attrs);
 
-        let ident = &sig.ident;
+        let ident = match field_attr.rename {
+            Some(s) => &syn::Ident::new(&s, sig.ident.span()),
+            None => &sig.ident,
+        };
+
         quote_methods.push(quote! {
             LuaMethod {
                 name: stringify!(#ident)

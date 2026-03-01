@@ -47,6 +47,12 @@ mod tests {
         pub fn other(m: usize) -> &'static str {
             "hello"
         }
+
+        // Not included
+        #[lua(rename = "renamed_method")]
+        pub fn wierd_name(m: usize) -> &'static str {
+            "hello"
+        }
     }
 
     #[lua_export]
@@ -92,7 +98,7 @@ mod tests {
         // Test Signatures and returns aswell
         assert_eq!(
             ty.methods.iter().map(|m| m.name).collect::<HashSet<&'static str>>(),
-            HashSet::from(["fun", "from"])
+            HashSet::from(["fun", "from", "renamed_method"])
         );
     }
 
