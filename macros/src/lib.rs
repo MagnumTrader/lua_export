@@ -1,11 +1,14 @@
 #![allow(unused, unreachable_code)]
-use proc_macro::TokenStream;
+use proc_macro::{Ident, TokenStream};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
     Attribute, Data, DataStruct, DeriveInput, Fields, ImplItem, ImplItemFn, Item, ItemImpl,
-    ItemStruct, Meta, MetaList, Path, Type, TypePath, parse::Parser, punctuated::Punctuated,
-    spanned::Spanned, token::Comma,
+    ItemStruct, LitStr, Meta, MetaList, Path, Token, Type, TypePath,
+    parse::{Parse, Parser},
+    punctuated::Punctuated,
+    spanned::Spanned,
+    token::Comma,
 };
 
 #[proc_macro_attribute]
@@ -17,6 +20,46 @@ pub fn lua_export(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
 }
 
 const STRUCT_ERROR: &str = "Can only use lua_export on Structs with named fields";
+
+#[derive(Debug)]
+struct FieldAttrs {
+    rename: Option<String>,
+}
+
+mod kw {
+    syn::custom_keyword!(rename);
+}
+
+// FIXME: Clean up this shiet
+impl Parse for FieldAttrs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut rename = None;
+
+        while !input.is_empty() {
+            let lookahead = input.lookahead1();
+            if lookahead.peek(kw::rename) {
+                input.parse::<kw::rename>()?;
+                input.parse::<Token![=]>()?;
+                let lit: LitStr = input.parse()?;
+                rename = Some(lit.value())
+            }
+        }
+        Ok(FieldAttrs { rename })
+    }
+}
+
+fn parse_attrs(attrs: &[Attribute]) -> Option<FieldAttrs> {
+    for attr in attrs {
+        if attr.path().is_ident("lua") {
+            let default = FieldAttrs { rename: None };
+            let parsed: FieldAttrs = match attr.parse_args() {
+                Ok(p) => return Some(p),
+                Err(_) => return Some(default),
+            };
+        }
+    }
+    None
+}
 
 fn remove_lua_attr(attrs: &mut Vec<Attribute>) {
     attrs.retain_mut(|attr| !attr.path().is_ident("lua"));
@@ -49,10 +92,10 @@ fn handle_struct(mut item_struct: ItemStruct) -> syn::Result<TokenStream2> {
     let mut quote_fields = Vec::new();
 
     for field in fields {
-
-        if !has_lua_attr(&field.attrs) {
+        let Some(field_attrs) = parse_attrs(&mut field.attrs) else {
             continue;
-        }
+        };
+        eprintln!("{:?}", field_attrs);
         remove_lua_attr(&mut field.attrs);
 
         let Type::Path(TypePath { path, .. }) = &field.ty else {
@@ -60,7 +103,10 @@ fn handle_struct(mut item_struct: ItemStruct) -> syn::Result<TokenStream2> {
         };
 
         let last_ty = path.segments.last().unwrap();
-        let field_ident = &field.ident;
+        let field_ident = match field_attrs.rename {
+            Some(name) => &syn::Ident::new(&name, field.span()),
+            None => field.ident.as_ref().expect("expect to have named fields"),
+        };
         quote_fields.push(quote! {
             LuaField {
                 name: stringify!(#field_ident),
@@ -109,19 +155,14 @@ fn handle_impl(mut item_impl: ItemImpl) -> syn::Result<TokenStream2> {
 
     let mut quote_methods = Vec::new();
     for item in items {
-
         let fn_impl = match item {
             ImplItem::Fn(impl_item_fn) => impl_item_fn,
-            // FIX: we just ignores all other types, so we dont 
+            // FIX: we just ignores all other types, so we dont
             // catch when user annotates other items than Fn
-            _ => continue, 
+            _ => continue,
         };
 
-        let ImplItemFn {
-            attrs,
-            sig,
-            ..
-        } = fn_impl;
+        let ImplItemFn { attrs, sig, .. } = fn_impl;
 
         if !has_lua_attr(attrs) {
             continue;

@@ -27,6 +27,9 @@ mod tests {
         #[lua]
         pub inner: std::string::String,
         pub skipping: usize,
+        // TODO: implement rename for fields and methods
+        #[lua(rename = "renamed")]
+        pub wierd_name: usize,
     }
 
     #[lua_export]
@@ -75,6 +78,10 @@ mod tests {
         let second = fields.next().unwrap();
         assert_eq!(second.name, "inner");
         assert_eq!(second.ty, "String");
+
+        let second = fields.next().unwrap();
+        assert_eq!(second.name, "renamed");
+        assert_eq!(second.ty, "usize");
 
         assert!(fields.next().is_none());
     }
