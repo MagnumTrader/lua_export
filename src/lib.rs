@@ -7,12 +7,6 @@ pub use macros::*;
 // Refactor to original design for methods.
 //  But assert by useing
 // Add mlua feature -> Impl UserData for fields and methods
-///```
-///const _: fn() = || {
-///   let _: fn(&MyIndicator, usize) -> usize = MyIndicator::my_method;
-///};
-///```
-#[allow(dead_code)]
 #[lua_export]
 struct MyIndicator {
     #[lua]
@@ -30,6 +24,7 @@ mod tests {
 
     use super::*;
 
+    // NOTE: this can be used to verify that the methods is actually working
     const _: fn() = || {
         let _: fn(usize) -> &'static str = MyTestIndicator::fun;
     };
@@ -37,7 +32,11 @@ mod tests {
         let _: fn(&MyTestIndicator, usize) -> &'static str = MyTestIndicator::const_verification;
     };
 
-    #[lua_export]
+    #[lua_export(
+        methods = [
+            method_name(field1: usize) -> String
+        ]
+    )]
     struct MyTestIndicator {
         #[lua]
         pub number: usize,
@@ -61,8 +60,8 @@ mod tests {
         }
 
         // Not included
-        pub fn other(m: usize) -> &'static str {
-            "hello"
+        pub fn other(&self, m: usize) -> String {
+            "hello".to_string()
         }
 
         // Not included

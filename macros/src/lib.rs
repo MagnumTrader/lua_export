@@ -4,8 +4,10 @@ mod codegen;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use syn::{
-    Item, spanned::Spanned,
+    spanned::Spanned, Attribute, Item
 };
+
+use crate::parse::LuaMacroInput;
 
 
 #[proc_macro_attribute]
@@ -16,16 +18,40 @@ pub fn lua_export(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
     }
 }
 
-fn inner(_attrs: TokenStream2, tokens: TokenStream2) -> syn::Result<TokenStream2> {
+fn inner(attrs: TokenStream2, tokens: TokenStream2) -> syn::Result<TokenStream2> {
     let span = tokens.span();
-    match syn::parse2::<Item>(tokens)? {
-        Item::Struct(item_struct) => codegen::handle_struct(item_struct),
-        Item::Impl(item_impl) => codegen::handle_impl(item_impl),
-        item => Err(syn::Error::new(
+    let mut code = match syn::parse2::<Item>(tokens)? {
+        Item::Struct(item_struct) => codegen::handle_struct(item_struct)?,
+        Item::Impl(item_impl) => codegen::handle_impl(item_impl)?,
+        item => return Err(syn::Error::new(
             span,
             format!("lua_export not implemented for {}", item_to_str(item)),
         )),
+    };
+
+    let methods: LuaMacroInput = syn::parse2(attrs)?;
+    
+    eprintln!("{:?}", methods);
+    if !methods.signatures.is_empty() {
+        let sig = &methods.signatures[0];
+        let types = sig.args.iter().map(|(_, ty)| {
+            ty
+        });
+        let returns = if let Some(r) = sig.returning.as_ref() {
+            quote::quote!{ -> #r}
+        } else {
+            quote::quote!{}
+        };
+        code.extend(
+            quote::quote!{
+                const _: fn() = || {
+                    let _: fn(&MyTestIndicator, #(#types),*) #returns = MyTestIndicator::other;
+                };
+            }
+        );
     }
+
+    Ok(code)
 }
 
 // TODO: These can have more userfriendly errors, dont expose syn types
