@@ -9,7 +9,7 @@ pub fn get_lua_types() -> impl Iterator<Item = LuaStruct> {
         let s = m.entry(item.belongs_to).or_insert(LuaStruct {
             name: item.belongs_to,
             fields: None,
-            methods: Vec::new()
+            methods: Vec::new(),
         });
         s.fields = Some(item.items);
     }
@@ -32,7 +32,6 @@ pub struct LuaStruct {
     pub name: &'static str,
     pub fields: Option<&'static [LuaField]>,
     pub methods: Vec<LuaMethod>,
-
 }
 
 /// Not public api only used for connecting T
@@ -53,7 +52,7 @@ inventory::collect!(LuaItem<LuaField>);
 
 #[derive(Debug, Clone, Copy)]
 pub struct LuaMethod {
-    pub name: &'static str
+    pub name: &'static str,
 }
 inventory::collect!(LuaItem<LuaMethod>);
 
@@ -72,9 +71,8 @@ impl From<syn::TypePath> for LuaType {
         let s = s.ident.to_string();
         match s.as_str() {
             "String" => LuaType::String,
-            "usize" | "isize" | "i32" | "i8"  => LuaType::Integer,
+            "usize" | "isize" | "i32" | "i8" => LuaType::Integer,
             _ => unimplemented!("Type not implemented: {}", s),
         }
     }
 }
-

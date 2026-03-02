@@ -1,5 +1,11 @@
 #![allow(unused, unreachable_code)]
-use syn::{bracketed, parenthesized, parse::Parse, token::Bracket, Attribute, LitStr, Token};
+use quote::ToTokens;
+use syn::{Attribute, LitStr, Token, bracketed, parenthesized, parse::Parse, token::Bracket};
+
+mod kw {
+    syn::custom_keyword!(rename);
+    syn::custom_keyword!(methods);
+}
 
 #[derive(Debug, Default)]
 pub struct LuaAttrs {
@@ -7,22 +13,28 @@ pub struct LuaAttrs {
 }
 
 #[derive(Debug)]
-pub struct LuaMacroInput {
+pub struct LuaAttrInput {
     pub signatures: Vec<MethodSig>,
 }
 
-impl Parse for LuaMacroInput {
+impl Parse for LuaAttrInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut signatures = Vec::new();
         while !input.is_empty() {
-            let bracketed;
             let _ = input.parse::<kw::methods>()?;
             let _ = input.parse::<Token![=]>()?;
+
+            let bracketed;
             let _ = bracketed!(bracketed in input);
-            let sig = bracketed.parse::<MethodSig>()?;
-            signatures.push(sig);
+            while !bracketed.is_empty() {
+                let sig = bracketed.parse::<MethodSig>()?;
+                if bracketed.peek(Token![,]) {
+                    let _ = input.parse::<Token![,]>()?;
+                }
+                signatures.push(sig);
+            }
         }
-        Ok(LuaMacroInput { signatures })
+        Ok(LuaAttrInput { signatures })
     }
 }
 
@@ -37,7 +49,7 @@ impl Parse for MethodSig {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name = input.parse::<syn::Ident>()?;
 
-        let in_paren; 
+        let in_paren;
         let _ = parenthesized!(in_paren in input);
         let mut args = Vec::new();
         while !in_paren.is_empty() {
@@ -56,18 +68,16 @@ impl Parse for MethodSig {
         } else {
             None
         };
-        
+        if input.peek(Token![,]) {
+            let _ = input.parse::<Token![,]>()?;
+        }
+
         Ok(MethodSig {
             name,
             args,
-            returning: returning
+            returning: returning,
         })
     }
-}
-
-mod kw {
-    syn::custom_keyword!(rename);
-    syn::custom_keyword!(methods);
 }
 
 impl Parse for LuaAttrs {

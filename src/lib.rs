@@ -2,10 +2,11 @@
 pub use lua_export_core::*;
 pub use macros::*;
 // TODO:s
-// 
+//  
+// Clean up method parsing.
+// add new methods to the
 // Add LuaDocs generation for LuaStruct
-// Refactor to original design for methods.
-//  But assert by useing
+// Refactor to original design for methods. But assert by useing const _: fn() || ...
 // Add mlua feature -> Impl UserData for fields and methods
 #[lua_export]
 struct MyIndicator {
@@ -34,7 +35,8 @@ mod tests {
 
     #[lua_export(
         methods = [
-            method_name(field1: usize) -> String
+            other(field1: usize) -> String,
+            const_verification(field1: usize) -> &'static str,
         ]
     )]
     struct MyTestIndicator {
@@ -66,8 +68,8 @@ mod tests {
 
         // Not included
         #[lua(rename = "renamed_method")]
-        pub fn wierd_name(m: usize) -> &'static str {
-            "hello"
+        pub fn wierd_name(&self, m: usize) -> String {
+            "hello".to_string()
         }
 
         pub fn const_verification(&self, m: usize) -> &'static str {
