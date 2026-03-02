@@ -3,11 +3,10 @@ pub use lua_export_core::*;
 pub use macros::*;
 // TODO:s
 //  
-// Clean up method parsing.
-// Add new methods to the
 // Add LuaDocs generation for LuaStruct
 // Add mlua feature -> Impl UserData for fields and methods
 // - [x] Refactor to original design for methods. But assert by useing const _: fn() || ...
+#[allow(unused)]
 #[lua_export]
 struct MyIndicator {
     #[lua]
@@ -37,7 +36,7 @@ mod tests {
         #[lua]
         pub inner: std::string::String,
         pub skipping: usize,
-        // TODO: implement rename for fields and methods
+
         #[lua(rename = "renamed")]
         pub wierd_name: usize,
     }

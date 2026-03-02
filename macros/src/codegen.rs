@@ -2,7 +2,7 @@ use crate::parse::{LuaAttrInput, MethodSignature, parse_lua_attr, remove_lua_att
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{spanned::Spanned, FnArg, ImplItem, ImplItemFn, ItemImpl, ItemStruct, PatIdent, PatType, Token, Type, TypePath};
+use syn::{spanned::Spanned, FnArg, ItemStruct, PatIdent, PatType, Type, TypePath};
 
 pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Result<TokenStream> {
     let ItemStruct {
