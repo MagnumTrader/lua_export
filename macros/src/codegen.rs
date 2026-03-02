@@ -43,22 +43,38 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
     }
 
     let methods: LuaAttrInput = syn::parse2(attrs)?;
-    let verifications = method_verifications(&methods.signatures);
+    let quote_methods = methods.signatures.iter().map(|m| {
+        let method_name = &m.name;
+
+        quote!{
+            LuaMethod {
+                name: stringify!(#method_name)
+            }
+        }
+    });
+    let method_verifications = method_verifications(&methods.signatures);
+
 
     let mlua_impl = quote! {}; // TODO: should fetch from a function where we pass, the lua
     // representation?
 
     let reconstructed = quote! {
 
-        #verifications
+        #method_verifications
         #item_struct
 
         #mlua_impl
 
         ::lua_export_core::inventory::submit!{
-            ::lua_export_core::LuaItem {
+            ::lua_export_core::LuaItem::<LuaField> {
                 belongs_to: stringify!(#ident),
                 items: &[#(#quote_fields),*]
+            }
+        }
+        ::lua_export_core::inventory::submit!{
+            ::lua_export_core::LuaItem::<LuaMethod> {
+                belongs_to: stringify!(#ident),
+                items: &[#(#quote_methods),*]
             }
         }
     };
@@ -66,60 +82,6 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
     // GOAL: This function should emit the struct.
     // have published the luastruct to inventory
     // implemented UserData
-
-    Ok(reconstructed)
-}
-
-// FIX: remove handle impl when attr parsing works
-pub fn handle_impl(mut item_impl: ItemImpl) -> syn::Result<TokenStream> {
-    let ItemImpl {
-        ref self_ty,
-        ref mut items,
-        ..
-    } = item_impl;
-
-    let Type::Path(TypePath { ref path, .. }): syn::Type = **self_ty else {
-        panic!("Expected path as self_ty, mabe  handle self")
-    };
-
-    let ident = *path.get_ident().as_ref().unwrap();
-
-    let mut quote_methods = Vec::new();
-    for item in items {
-        let fn_impl = match item {
-            ImplItem::Fn(impl_item_fn) => impl_item_fn,
-            _ => continue,
-        };
-
-        let ImplItemFn { attrs, sig, .. } = fn_impl;
-
-        let Some(field_attr) = parse_lua_attr(attrs) else {
-            continue;
-        };
-        remove_lua_attr(attrs);
-
-        let ident = match field_attr.rename {
-            Some(s) => &syn::Ident::new(&s, sig.ident.span()),
-            None => &sig.ident,
-        };
-
-        quote_methods.push(quote! {
-            LuaMethod {
-                name: stringify!(#ident)
-            }
-        });
-    }
-
-    let reconstructed = quote! {
-        #item_impl
-
-        ::lua_export_core::inventory::submit!{
-            ::lua_export_core::LuaItem {
-                belongs_to: stringify!(#ident),
-                items: &[#(#quote_methods),*]
-            }
-        }
-    };
 
     Ok(reconstructed)
 }

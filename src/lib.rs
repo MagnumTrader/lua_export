@@ -4,10 +4,10 @@ pub use macros::*;
 // TODO:s
 //  
 // Clean up method parsing.
-// add new methods to the
+// Add new methods to the
 // Add LuaDocs generation for LuaStruct
-// Refactor to original design for methods. But assert by useing const _: fn() || ...
 // Add mlua feature -> Impl UserData for fields and methods
+// - [x] Refactor to original design for methods. But assert by useing const _: fn() || ...
 #[lua_export]
 struct MyIndicator {
     #[lua]
@@ -25,18 +25,9 @@ mod tests {
 
     use super::*;
 
-    // NOTE: this can be used to verify that the methods is actually working
-    const _: fn() = || {
-        let _: fn(usize) -> &'static str = MyTestIndicator::fun;
-    };
-    const _: fn() = || {
-        let _: fn(&MyTestIndicator, usize) -> &'static str = MyTestIndicator::const_verification;
-    };
-
     #[lua_export(
         methods = [
-            other(field1: usize) -> String,
-            const_verification(field1: usize) -> &'static str,
+            fun(field1: usize) -> &'static str,
         ]
     )]
     struct MyTestIndicator {
@@ -50,14 +41,12 @@ mod tests {
         pub wierd_name: usize,
     }
 
-    #[lua_export]
     impl MyTestIndicator {
 
         const IGNORED: &'static str = "I am ignored by Lua export";
 
         // Included
-        #[lua]
-        pub fn fun(m: usize) -> &'static str {
+        pub fn fun(&self, m: usize) -> &'static str {
             "hello"
         }
 
@@ -66,8 +55,6 @@ mod tests {
             "hello".to_string()
         }
 
-        // Not included
-        #[lua(rename = "renamed_method")]
         pub fn wierd_name(&self, m: usize) -> String {
             "hello".to_string()
         }
@@ -77,9 +64,7 @@ mod tests {
         }
     }
 
-    #[lua_export]
     impl From<String> for MyTestIndicator {
-        #[lua]
         fn from(value: String) -> Self {
             todo!()
         }
@@ -120,7 +105,7 @@ mod tests {
         // Test Signatures and returns aswell
         assert_eq!(
             ty.methods.iter().map(|m| m.name).collect::<HashSet<&'static str>>(),
-            HashSet::from(["fun", "from", "renamed_method"])
+            HashSet::from(["fun"])
         );
     }
 

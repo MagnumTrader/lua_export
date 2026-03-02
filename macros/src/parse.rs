@@ -26,6 +26,7 @@ impl Parse for LuaAttrInput {
 
             let bracketed;
             let _ = bracketed!(bracketed in input);
+            
             while !bracketed.is_empty() {
                 let sig = bracketed.parse::<MethodSig>()?;
                 if bracketed.peek(Token![,]) {

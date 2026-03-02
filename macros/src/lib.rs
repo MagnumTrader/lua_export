@@ -17,7 +17,7 @@ fn inner(attrs: TokenStream2, tokens: TokenStream2) -> syn::Result<TokenStream2>
     let span = tokens.span();
     match syn::parse2::<Item>(tokens)? {
         Item::Struct(item_struct) => codegen::handle_struct(item_struct, attrs),
-        Item::Impl(item_impl) => codegen::handle_impl(item_impl),
+        //Item::Impl(item_impl) => codegen::handle_impl(item_impl),
         item => Err(syn::Error::new(
             span,
             format!("lua_export not implemented for {}", item_to_str(item)),
