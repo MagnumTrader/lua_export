@@ -1,6 +1,9 @@
 #![allow(unused, unreachable_code)]
 use quote::ToTokens;
-use syn::{Attribute, LitStr, Token, bracketed, parenthesized, parse::Parse, token::Bracket};
+use syn::{
+    Attribute, FnArg, LitStr, PatType, Token, bracketed, parenthesized, parse::Parse,
+    token::Bracket,
+};
 
 mod kw {
     syn::custom_keyword!(rename);
@@ -38,7 +41,7 @@ impl Parse for LuaAttrInput {
 pub struct MethodSignature {
     pub name: syn::Ident,
     pub receiver: Option<syn::Receiver>,
-    pub args: Vec<(syn::Ident, syn::Type)>, 
+    pub args: Vec<PatType>,
     pub returning: Option<syn::Type>,
 }
 
@@ -50,8 +53,6 @@ impl Parse for MethodSignature {
         let _ = parenthesized!(in_paren in input);
 
         let mut receiver = None;
-        let mut args = Vec::new();
-
         if in_paren.peek(Token![self]) || in_paren.peek(Token![&]) {
             receiver = Some(in_paren.parse::<syn::Receiver>()?);
             if in_paren.peek(Token![,]) {
@@ -59,17 +60,10 @@ impl Parse for MethodSignature {
             }
         }
 
-        //TODO: this can be simplified to collect FnArgs
-        //check reciever_to_typed function
-        while !in_paren.is_empty() {
-            let arg_name = in_paren.parse::<syn::Ident>()?;
-            let _ = in_paren.parse::<Token![:]>()?;
-            let ty = in_paren.parse::<syn::Type>()?;
-            if in_paren.peek(Token![,]) {
-                let _ = in_paren.parse::<Token![,]>()?;
-            }
-            args.push((arg_name, ty));
-        }
+        let args = in_paren
+            .parse_terminated(PatType::parse, Token![,])?
+            .into_iter()
+            .collect();
 
         let returning = if input.peek(Token![->]) {
             let _ = input.parse::<Token![->]>()?;
@@ -82,7 +76,7 @@ impl Parse for MethodSignature {
             name,
             receiver,
             args,
-            returning: returning,
+            returning,
         })
     }
 }

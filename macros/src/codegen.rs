@@ -11,12 +11,6 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
         ..
     } = item_struct;
 
-    // TODO: we should probably be branching here.
-    // keeping the context for example with the name of the struct into the generation
-    // of methods etc then we reconstruct, and produce the LuaStruct
-    //
-    // we produce the implemention of mlua if feature is activated
-    // TODO: extract this to function. collect_fields_quote
     let mut quote_fields = Vec::new();
 
     for field in fields {
@@ -34,6 +28,7 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
             Some(name) => &syn::Ident::new(&name, field.span()),
             None => field.ident.as_ref().expect("expect to have named fields"),
         };
+
         quote_fields.push(quote! {
             LuaField {
                 name: stringify!(#field_ident),
@@ -57,8 +52,8 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
     // representation?
 
     let reconstructed = quote! {
-
         #method_verifications
+
         #item_struct
 
         #mlua_impl
@@ -129,10 +124,10 @@ pub fn method_verifications(type_name: &syn::Ident, signatures: &[MethodSignatur
             }
         } else {quote!{}};
 
-        // TODO: This can be function args instead
-        let args = sig.args.iter().map(|(id, ty)| {
+        let args = sig.args.iter().map(|PatType{ pat, ty, .. }| {
+            eprintln!("{:?}", pat);
             quote!{
-                #id: #ty
+                #pat: #ty
             }
         });
 
