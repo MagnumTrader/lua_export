@@ -25,7 +25,6 @@ fn inner(attrs: TokenStream2, tokens: TokenStream2) -> syn::Result<TokenStream2>
     }
 }
 
-// TODO: These can have more userfriendly errors, dont expose syn types
 fn item_to_str(i: Item) -> &'static str {
     match i {
         Item::Const(_) => "Item::Const",

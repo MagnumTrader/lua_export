@@ -13,6 +13,4 @@ struct MyRustStruct {
 }
 ```
 
-This will produce: 
-TODO: ...
 

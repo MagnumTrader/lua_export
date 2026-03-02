@@ -98,7 +98,10 @@ impl Parse for LuaFieldAttrs {
     }
 }
 
-// FIX: return a Result instead and return error for unknown attributes.
+// TODO: We should parse this into a LuaField {rustname, luaname, ty}
+// Take the field as input. and do the removing and parsing.
+// luafieldattr can still be used for internally handle #[lua(rename = "dingdong")]
+// but what should be returned from this function is a LuaField
 pub fn parse_lua_attr(attrs: &[Attribute]) -> Option<LuaFieldAttrs> {
     for attr in attrs {
         if attr.path().is_ident("lua") {

@@ -1,26 +1,18 @@
 // Crate for the things that we will be using for translating rust types to lua
 pub use lua_export_core::*;
 pub use macros::*;
-// TODO:s
-//  
+// TO DO:s
+//
 // Add LuaDocs generation for LuaStruct
 // Add mlua feature -> Impl UserData for fields and methods
-// - [x] Refactor to original design for methods. But assert by useing const _: fn() || ...
-#[allow(unused)]
-#[lua_export]
-struct MyIndicator {
-    #[lua]
-    pub number: usize,
-    #[lua]
-    pub inner: std::string::String,
-    pub skipping: usize,
-}
 
 #[allow(unused, unreachable_code)]
 #[cfg(test)]
 mod tests {
 
     use std::collections::HashSet;
+
+    use mlua::{Lua, ObjectLike};
 
     use super::*;
 
@@ -42,9 +34,6 @@ mod tests {
     }
 
     impl MyTestIndicator {
-
-        const IGNORED: &'static str = "I am ignored by Lua export";
-
         // Included
         pub fn fun(&mut self, m: usize) -> String {
             "hello".to_string()
@@ -103,9 +92,38 @@ mod tests {
         let ty = get_test_indicator();
         // Test Signatures and returns aswell
         assert_eq!(
-            ty.methods.iter().map(|m| m.name).collect::<HashSet<&'static str>>(),
+            ty.methods
+                .iter()
+                .map(|m| m.name)
+                .collect::<HashSet<&'static str>>(),
             HashSet::from(["fun", "other"])
         );
+    }
+
+    #[test]
+    fn lua_fields() {
+        let lua = Lua::new();
+
+        let indicator = MyTestIndicator {
+            number: 1337,
+            inner: String::from("hello"),
+            skipping: 0,
+            wierd_name: 123,
+        };
+
+        let ud = lua.create_userdata(indicator).unwrap();
+
+        let got = ud.get::<usize>("number").unwrap();
+        assert_eq!(got, 1337);
+
+        let got = ud.get::<String>("inner").unwrap();
+        assert_eq!(&got, "hello");
+
+        let got = ud.get::<usize>("renamed").unwrap();
+        assert_eq!(got, 123);
+
+        let got = ud.get::<usize>("skipped");
+        assert!(got.is_err())
     }
 
     struct Hello;

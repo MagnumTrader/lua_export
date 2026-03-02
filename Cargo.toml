@@ -7,8 +7,8 @@ edition = "2024"
 macros = {path = "macros"}
 lua_export_core = {path = "lua_export_core"}
 
-[dev.dependencies]
-mlua = "*"
+[dev-dependencies]
+mlua = {version = "*", features = ["lua55"]}
 
 
 
