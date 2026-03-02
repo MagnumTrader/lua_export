@@ -1,4 +1,4 @@
-use crate::parse::{LuaAttrInput, MethodSig, parse_lua_attr, remove_lua_attr};
+use crate::parse::{LuaAttrInput, MethodSignature, parse_lua_attr, remove_lua_attr};
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -86,12 +86,13 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
 
 fn receiver_to_typed(recv: &syn::Receiver, ty_name: &syn::Ident) -> FnArg {
 
+    let par_name = ty_name.to_string().to_lowercase();
     let pat = Box::new(syn::Pat::Ident(PatIdent {
         attrs: vec![],
         by_ref: None,
         mutability: None,
         // TODO: this is uppercase name
-        ident: ty_name.clone(),
+        ident: syn::Ident::new(&par_name, recv.self_token.span()),
         subpat: None,
     }));
 
@@ -115,7 +116,8 @@ fn receiver_to_typed(recv: &syn::Receiver, ty_name: &syn::Ident) -> FnArg {
         ty,
     })
 }
-pub fn method_verifications(type_name: &syn::Ident, signatures: &[MethodSig]) -> TokenStream {
+
+pub fn method_verifications(type_name: &syn::Ident, signatures: &[MethodSignature]) -> TokenStream {
     let mut code = quote::quote! {};
 
     for sig in signatures {
@@ -127,6 +129,7 @@ pub fn method_verifications(type_name: &syn::Ident, signatures: &[MethodSig]) ->
             }
         } else {quote!{}};
 
+        // TODO: This can be function args instead
         let args = sig.args.iter().map(|(id, ty)| {
             quote!{
                 #id: #ty
@@ -138,17 +141,13 @@ pub fn method_verifications(type_name: &syn::Ident, signatures: &[MethodSig]) ->
         } else {quote!{}};
 
         let method_span = name.span();
-        let check_sig = quote!{
-            fn(#receiver #(#args),*) #returns = #type_name::#name
-        };
 
-        eprintln!("{:?}", &check_sig.to_string());
         code.extend(
             // FIX: Creating compile time verification of the methods
             // this will be optimized away in a release build, or so they say.
             quote::quote_spanned! {method_span=>
                 const _: fn() = || {
-                    let _: #check_sig;
+                    let _: fn(#receiver #(#args),*) #returns = #type_name::#name;
                 };
             },
         );

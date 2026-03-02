@@ -14,7 +14,7 @@ pub struct LuaAttrs {
 
 #[derive(Debug)]
 pub struct LuaAttrInput {
-    pub method_signatures: Vec<MethodSig>,
+    pub method_signatures: Vec<MethodSignature>,
 }
 
 impl Parse for LuaAttrInput {
@@ -27,7 +27,7 @@ impl Parse for LuaAttrInput {
             let bracketed;
             let _ = bracketed!(bracketed in input);
 
-            let sigs = bracketed.parse_terminated(MethodSig::parse, Token![,])?;
+            let sigs = bracketed.parse_terminated(MethodSignature::parse, Token![,])?;
             method_signatures.extend(sigs);
         }
         Ok(LuaAttrInput { method_signatures })
@@ -35,14 +35,14 @@ impl Parse for LuaAttrInput {
 }
 
 #[derive(Debug)]
-pub struct MethodSig {
+pub struct MethodSignature {
     pub name: syn::Ident,
     pub receiver: Option<syn::Receiver>,
-    pub args: Vec<(syn::Ident, syn::Type)>,
+    pub args: Vec<(syn::Ident, syn::Type)>, 
     pub returning: Option<syn::Type>,
 }
 
-impl Parse for MethodSig {
+impl Parse for MethodSignature {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name = input.parse::<syn::Ident>()?;
 
@@ -59,6 +59,8 @@ impl Parse for MethodSig {
             }
         }
 
+        //TODO: this can be simplified to collect FnArgs
+        //check reciever_to_typed function
         while !in_paren.is_empty() {
             let arg_name = in_paren.parse::<syn::Ident>()?;
             let _ = in_paren.parse::<Token![:]>()?;
@@ -76,7 +78,7 @@ impl Parse for MethodSig {
             None
         };
 
-        Ok(MethodSig {
+        Ok(MethodSignature {
             name,
             receiver,
             args,

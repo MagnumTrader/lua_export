@@ -27,7 +27,8 @@ mod tests {
 
     #[lua_export(
         methods = [
-            fun(&self, field1: usize) -> String
+            fun(&mut self, field1: usize) -> String,
+            other(field1: usize) -> String,
         ]
     )]
     struct MyTestIndicator {
@@ -46,11 +47,10 @@ mod tests {
         const IGNORED: &'static str = "I am ignored by Lua export";
 
         // Included
-        pub fn fun(&self, m: usize) -> String {
+        pub fn fun(&mut self, m: usize) -> String {
             "hello".to_string()
         }
 
-        // Not included
         pub fn other(m: usize) -> String {
             "hello".to_string()
         }
@@ -105,7 +105,7 @@ mod tests {
         // Test Signatures and returns aswell
         assert_eq!(
             ty.methods.iter().map(|m| m.name).collect::<HashSet<&'static str>>(),
-            HashSet::from(["fun"])
+            HashSet::from(["fun", "other"])
         );
     }
 
