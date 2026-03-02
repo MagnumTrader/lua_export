@@ -24,7 +24,7 @@ pub fn get_lua_types() -> impl Iterator<Item = LuaStruct> {
         s.methods.extend(item.items);
     }
     // Will add methods and other meta data here if needed
-    m.into_iter().map(|(_, s)| s)
+    m.into_values()
 }
 
 #[derive(Debug)]
