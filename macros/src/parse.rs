@@ -11,7 +11,7 @@ mod kw {
 }
 
 #[derive(Debug, Default)]
-pub struct LuaAttrs {
+pub struct LuaFieldAttrs {
     pub rename: Option<String>,
 }
 
@@ -81,7 +81,7 @@ impl Parse for MethodSignature {
     }
 }
 
-impl Parse for LuaAttrs {
+impl Parse for LuaFieldAttrs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut rename = None;
 
@@ -94,17 +94,17 @@ impl Parse for LuaAttrs {
                 rename = Some(lit.value())
             }
         }
-        Ok(LuaAttrs { rename })
+        Ok(LuaFieldAttrs { rename })
     }
 }
 
 // FIX: return a Result instead and return error for unknown attributes.
-pub fn parse_lua_attr(attrs: &[Attribute]) -> Option<LuaAttrs> {
+pub fn parse_lua_attr(attrs: &[Attribute]) -> Option<LuaFieldAttrs> {
     for attr in attrs {
         if attr.path().is_ident("lua") {
             match attr.parse_args() {
                 Ok(p) => return Some(p),
-                Err(_) => return Some(LuaAttrs::default()),
+                Err(_) => return Some(LuaFieldAttrs::default()),
             }
         }
     }
