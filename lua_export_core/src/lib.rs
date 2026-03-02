@@ -15,7 +15,6 @@ pub fn get_lua_types() -> impl Iterator<Item = LuaStruct> {
     }
 
     for item in inventory::iter::<LuaItem<LuaMethod>> {
-        eprintln!("{item:?}");
         let s = m.entry(item.belongs_to).or_insert(LuaStruct {
             name: item.belongs_to,
             fields: None,

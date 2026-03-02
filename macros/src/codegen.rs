@@ -2,7 +2,7 @@ use crate::parse::{LuaAttrInput, MethodSig, parse_lua_attr, remove_lua_attr};
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{ImplItem, ImplItemFn, ItemImpl, ItemStruct, Type, TypePath, spanned::Spanned};
+use syn::{spanned::Spanned, FnArg, ImplItem, ImplItemFn, ItemImpl, ItemStruct, PatIdent, PatType, Token, Type, TypePath};
 
 pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Result<TokenStream> {
     let ItemStruct {
@@ -43,17 +43,15 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
     }
 
     let methods: LuaAttrInput = syn::parse2(attrs)?;
-    let quote_methods = methods.signatures.iter().map(|m| {
+    let quote_methods = methods.method_signatures.iter().map(|m| {
         let method_name = &m.name;
-
-        quote!{
+        quote! {
             LuaMethod {
                 name: stringify!(#method_name)
             }
         }
     });
-    let method_verifications = method_verifications(&methods.signatures);
-
+    let method_verifications = method_verifications(&ident, &methods.method_signatures);
 
     let mlua_impl = quote! {}; // TODO: should fetch from a function where we pass, the lua
     // representation?
@@ -86,26 +84,71 @@ pub fn handle_struct(mut item_struct: ItemStruct, attrs: TokenStream) -> syn::Re
     Ok(reconstructed)
 }
 
-pub fn method_verifications(signatures: &[MethodSig]) -> TokenStream {
+fn receiver_to_typed(recv: &syn::Receiver, ty_name: &syn::Ident) -> FnArg {
+
+    let pat = Box::new(syn::Pat::Ident(PatIdent {
+        attrs: vec![],
+        by_ref: None,
+        mutability: None,
+        // TODO: this is uppercase name
+        ident: ty_name.clone(),
+        subpat: None,
+    }));
+
+    let ty: Box<Type> = if let Some((and, lifetime)) = &recv.reference {
+        // &self or &mut self → &TypeName or &mut TypeName
+        Box::new(Type::Reference(syn::TypeReference {
+            and_token: *and,
+            lifetime: lifetime.clone(),
+            mutability: recv.mutability,
+            elem: Box::new(syn::parse_quote!(#ty_name)),
+        }))
+    } else {
+        // self or mut self → TypeName
+        Box::new(syn::parse_quote!(#ty_name))
+    };
+
+    FnArg::Typed(PatType {
+        attrs: recv.attrs.clone(),
+        pat,
+        colon_token: Default::default(),
+        ty,
+    })
+}
+pub fn method_verifications(type_name: &syn::Ident, signatures: &[MethodSig]) -> TokenStream {
     let mut code = quote::quote! {};
 
     for sig in signatures {
         let name = &sig.name;
-        let types = sig.args.iter().map(|(_, ty)| ty);
+        let receiver = if let Some(recv) = &sig.receiver {
+            let typed = receiver_to_typed(recv, type_name);
+            quote!{
+                #typed,
+            }
+        } else {quote!{}};
 
-        let returns = if let Some(r) = sig.returning.as_ref() {
-            quote::quote! { -> #r}
-        } else {
-            quote::quote! {}
-        };
+        let args = sig.args.iter().map(|(id, ty)| {
+            quote!{
+                #id: #ty
+            }
+        });
+
+        let returns = if let Some(return_ty) = &sig.returning {
+            quote!{-> #return_ty}
+        } else {quote!{}};
 
         let method_span = name.span();
+        let check_sig = quote!{
+            fn(#receiver #(#args),*) #returns = #type_name::#name
+        };
+
+        eprintln!("{:?}", &check_sig.to_string());
         code.extend(
             // FIX: Creating compile time verification of the methods
             // this will be optimized away in a release build, or so they say.
             quote::quote_spanned! {method_span=>
                 const _: fn() = || {
-                    let _: fn(&MyTestIndicator, #(#types),*) #returns = MyTestIndicator::#name;
+                    let _: #check_sig;
                 };
             },
         );

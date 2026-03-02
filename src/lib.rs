@@ -27,7 +27,7 @@ mod tests {
 
     #[lua_export(
         methods = [
-            fun(field1: usize) -> &'static str,
+            fun(&self, field1: usize) -> String
         ]
     )]
     struct MyTestIndicator {
@@ -46,12 +46,12 @@ mod tests {
         const IGNORED: &'static str = "I am ignored by Lua export";
 
         // Included
-        pub fn fun(&self, m: usize) -> &'static str {
-            "hello"
+        pub fn fun(&self, m: usize) -> String {
+            "hello".to_string()
         }
 
         // Not included
-        pub fn other(&self, m: usize) -> String {
+        pub fn other(m: usize) -> String {
             "hello".to_string()
         }
 

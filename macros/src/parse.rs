@@ -14,34 +14,30 @@ pub struct LuaAttrs {
 
 #[derive(Debug)]
 pub struct LuaAttrInput {
-    pub signatures: Vec<MethodSig>,
+    pub method_signatures: Vec<MethodSig>,
 }
 
 impl Parse for LuaAttrInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut signatures = Vec::new();
+        let mut method_signatures = Vec::new();
         while !input.is_empty() {
             let _ = input.parse::<kw::methods>()?;
             let _ = input.parse::<Token![=]>()?;
 
             let bracketed;
             let _ = bracketed!(bracketed in input);
-            
-            while !bracketed.is_empty() {
-                let sig = bracketed.parse::<MethodSig>()?;
-                if bracketed.peek(Token![,]) {
-                    let _ = input.parse::<Token![,]>()?;
-                }
-                signatures.push(sig);
-            }
+
+            let sigs = bracketed.parse_terminated(MethodSig::parse, Token![,])?;
+            method_signatures.extend(sigs);
         }
-        Ok(LuaAttrInput { signatures })
+        Ok(LuaAttrInput { method_signatures })
     }
 }
 
 #[derive(Debug)]
 pub struct MethodSig {
     pub name: syn::Ident,
+    pub receiver: Option<syn::Receiver>,
     pub args: Vec<(syn::Ident, syn::Type)>,
     pub returning: Option<syn::Type>,
 }
@@ -52,7 +48,17 @@ impl Parse for MethodSig {
 
         let in_paren;
         let _ = parenthesized!(in_paren in input);
+
+        let mut receiver = None;
         let mut args = Vec::new();
+
+        if in_paren.peek(Token![self]) || in_paren.peek(Token![&]) {
+            receiver = Some(in_paren.parse::<syn::Receiver>()?);
+            if in_paren.peek(Token![,]) {
+                let _ = in_paren.parse::<Token![,]>()?;
+            }
+        }
+
         while !in_paren.is_empty() {
             let arg_name = in_paren.parse::<syn::Ident>()?;
             let _ = in_paren.parse::<Token![:]>()?;
@@ -69,12 +75,10 @@ impl Parse for MethodSig {
         } else {
             None
         };
-        if input.peek(Token![,]) {
-            let _ = input.parse::<Token![,]>()?;
-        }
 
         Ok(MethodSig {
             name,
+            receiver,
             args,
             returning: returning,
         })
