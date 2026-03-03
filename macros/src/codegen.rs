@@ -146,7 +146,6 @@ pub fn method_verifications(type_name: &syn::Ident, signatures: &[MethodSignatur
         };
 
         let args = sig.args.iter().map(|PatType { pat, ty, .. }| {
-            eprintln!("{:?}", pat);
             quote! {
                 #pat: #ty
             }

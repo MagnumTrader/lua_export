@@ -20,6 +20,7 @@ mod tests {
         methods = [
             fun(&mut self, field1: usize) -> String,
             other(field1: usize) -> String,
+            from(value: String) -> MyTestIndicator,
         ]
     )]
     struct MyTestIndicator {
@@ -96,7 +97,7 @@ mod tests {
                 .iter()
                 .map(|m| m.name)
                 .collect::<HashSet<&'static str>>(),
-            HashSet::from(["fun", "other"])
+            HashSet::from(["fun", "other", "from"])
         );
     }
 
